@@ -1,0 +1,18 @@
+[project]
+name = "youtube-search-metadata"
+version = "0.1.0"
+description = "Download YouTube metadata JSONs based on search queries"
+requires-python = ">=3.11"
+dependencies = [
+    "yt-dlp>=2024.3.10",
+    "pyyaml>=6.0.1",
+]
+
+[tool.uv]
+# Questa è la chiave: diciamo a uv che questo non è un pacchetto da installare,
+# ma un'applicazione da eseguire. Evita ogni errore di build backend (hatchling).
+package = false
+
+[tool.hatch.metadata]
+# Opzionale: previene warning di hatchling
+allow-direct-references = true
