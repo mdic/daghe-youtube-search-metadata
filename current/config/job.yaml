@@ -1,8 +1,9 @@
 job_name: "daghe-youtube-search-metadata"
 
-search:
-  query: "Linux automation tutorial 2024"
-  max_results: 10
+# Define multiple search tasks
+searches:
+  - query: "Linux automation tutorial 2024"
+    max_results: 1
 
 paths:
   data_dir: "${BASE_DIR}/jobs/daghe-youtube-search-metadata/data"
