@@ -65,9 +65,12 @@ def run_job(config_path: str, dry_run: bool, verbose: bool):
             (True, "Skipped") if dry_run else run_git_sync(config, newly_downloaded)
         )
 
-        status = "success"
-        if errors or not git_success:
-            status = "partial" if newly_downloaded > 0 else "failure"
+        if not errors and git_success:
+            status = "success"
+        elif newly_downloaded > 0:
+            status = "partial"
+        else:
+            status = "failure"
 
         # Final Summary
         total_size = get_dir_size_human(config.data_dir)

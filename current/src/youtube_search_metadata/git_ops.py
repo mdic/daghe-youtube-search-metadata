@@ -6,8 +6,11 @@ logger = logging.getLogger(__name__)
 
 
 def run_git_sync(config, new_count: int):
-    if not config.get("git", "enabled") or new_count == 0:
-        return False, "No changes to commit"
+    if not config.get("git", "enabled"):
+        return True, "Git sync disabled"
+
+    if new_count == 0:
+        return True, "No changes to commit"
 
     data_dir = config.data_dir
     query = config.get("search", "query")
@@ -27,7 +30,7 @@ def run_git_sync(config, new_count: int):
             return True, "No actual changes in data dir"
 
         # Commit
-        subprocess.run(["git", "add", "."], cwd=data_dir, check=True)
+        subprocess.run(["git", "add", "-A"], cwd=data_dir, check=True)
         subprocess.run(["git", "commit", "-m", msg], cwd=data_dir, check=True)
 
         # Push
