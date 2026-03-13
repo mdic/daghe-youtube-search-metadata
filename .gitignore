@@ -1,5 +1,21 @@
+# Standard Python
 __pycache__/
 .venv/
 .env
-data/
+*.pyc
+
+# Data Confinement
+# Ignore everything in data/ except the .gitkeep file
 data/*
+!data/.gitkeep
+
+# Config Safety
+# If you use 'config/' (standard)
+config/*.yaml
+!config/*.yaml.example
+!config/.gitkeep
+
+# If you use '.config/' (hidden)
+.config/*.yaml
+!.config/*.yaml.example
+!.config/.gitkeep

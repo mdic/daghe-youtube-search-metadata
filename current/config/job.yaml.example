@@ -1,0 +1,50 @@
+job_name: "daghe-youtube-search-metadata"
+
+# Define multiple search tasks
+searches:
+  - query: "Linux automation tutorial 2024"
+    max_results: 1
+
+paths:
+  data_dir: "${BASE_DIR}/jobs/daghe-youtube-search-metadata/data"
+  archive_file: "${BASE_DIR}/jobs/daghe-youtube-search-metadata/data/processed_videos.txt"
+  telegram_helper: "${BASE_DIR}/bin/telegram-notify.sh"
+
+output:
+  pretty_json: true
+  overwrite_existing_json: false
+  # Se true usa l'ID (es. 0FuF-yE9Kqs.json)
+  # Se false usa il titolo (es. Come installare Linux.json)
+  use_id_filenames: true
+
+logging:
+  level: "INFO"
+
+git:
+  enabled: true
+  branch: "main"
+  auto_push: true
+  commit_message_template: "youtube-search-metadata: {new_count} new metadata files for query '{query}'"
+
+telegram:
+  enabled: true
+  notify_on_success: true
+  notify_on_partial: true
+  notify_on_failure: true
+  level_on_success: "info"
+  level_on_partial: "error"
+  level_on_failure: "error"
+
+runtime:
+  continue_on_video_error: true
+
+yt_dlp:
+  # Path to the cookies file, using the dynamic placeholder
+  cookie_file: "${BASE_DIR}/config/cookies/daghe-youtube-search-metadata.txt"
+
+  # Extra arguments mapped to yt-dlp Python API keys
+  # See: https://github.com/yt-dlp/yt-dlp/blob/master/yt_dlp/YoutubeDL.py#L141
+  extra_options:
+    sleep_interval_requests: 1
+    verbose: true
+    nocheckcertificate: false
