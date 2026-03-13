@@ -6,6 +6,11 @@ module:
   entrypoint: "youtube_search_metadata.cli"
   params: "--config config/job.yaml"
 
+proxy:
+  # Must match the name of the tunnel SOCKS5 proxy environment file
+  # e.g. if your proxy config is in config/proxies/tunnel-socks.env, set this to 'tunnel-socks'
+  # name: "tunnel-socks"
+
 schedule:
   # systemd OnCalendar syntax: "day-skipping" logic (every two days)
   # Example: "*-*-1/2 04:00:00" means 4AM every two days
@@ -28,3 +33,14 @@ git:
   code_repo: "https://github.com/mdic/daghe-youtube-search-metadata.git"
   # can use SSH for private repos
   data_repo: "git@github.com:YOUR/REPO.git"
+
+yt_dlp:
+  # Path to the cookies file, using the dynamic placeholder
+  cookie_file: "${BASE_DIR}/config/cookies/daghe-youtube-search-metadata.txt"
+
+  # Extra arguments mapped to yt-dlp Python API keys
+  # See: https://github.com/yt-dlp/yt-dlp/blob/master/yt_dlp/YoutubeDL.py#L141
+  extra_options:
+    sleep_interval_requests: 1
+    verbose: true
+    nocheckcertificate: false

@@ -27,6 +27,17 @@ class JobConfig:
         # Per lo script helper, restituiamo la stringa espansa
         return os.path.expandvars(self.raw["paths"]["telegram_helper"])
 
+    @property
+    def ydl_cookie_file(self) -> str | None:
+        path = self.get("yt_dlp", "cookie_file")
+        if path:
+            return str(self._expand_path(path))
+        return None
+
+    @property
+    def ydl_extra_options(self) -> dict:
+        return self.get("yt_dlp", "extra_options", default={})
+
     def get(self, *keys, default=None):
         data = self.raw
         for key in keys:
