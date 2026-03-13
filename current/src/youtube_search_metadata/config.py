@@ -39,15 +39,18 @@ class JobConfig:
 
     @property
     def ydl_cookie_file(self) -> str | None:
+        """Returns expanded cookie file path from the yt_dlp section."""
         yt_section = self.raw.get("yt_dlp", {})
         path = yt_section.get("cookie_file")
         return os.path.expandvars(path) if path else None
 
     @property
-    def ydl_extra_options(self) -> dict:
-        return self.raw.get("yt_dlp", {}).get("extra_options", {})
+    def global_ydl_opts(self) -> dict:
+        """Returns global extra options for yt-dlp API."""
+        return self.raw.get("yt_dlp", {}).get("extra_ydl_opts", {})
 
     def get(self, *keys, default=None):
+        """Deep get utility for nested dictionaries."""
         data = self.raw
         for key in keys:
             if isinstance(data, dict):
@@ -58,5 +61,6 @@ class JobConfig:
 
 
 def load_config(path: str) -> JobConfig:
+    """Load and validate the YAML configuration."""
     with open(path, "r") as f:
         return JobConfig(yaml.safe_load(f))

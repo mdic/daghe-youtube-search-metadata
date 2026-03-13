@@ -51,6 +51,8 @@ def run_job(config_path: str, dry_run: bool, verbose: bool):
     for search_item in config.searches:
         query = search_item.get("query")
         max_res = search_item.get("max_results", 5)
+        # Extract search-specific yt-dlp options if they exist
+        search_opts = search_item.get("extra_ydl_opts", {})
 
         if not query:
             continue
@@ -61,12 +63,14 @@ def run_job(config_path: str, dry_run: bool, verbose: bool):
         query_dir_name = sanitize_filename(query)
         target_dir = config.data_dir / query_dir_name
 
-        candidates = downloader.search_videos(query, max_res)
+        candidates = downloader.search_videos(query, max_res, search_opts)
         query_new_count = 0
 
         for entry in candidates:
             try:
-                if downloader.process_video(entry, target_dir, dry_run=dry_run):
+                if downloader.process_video(
+                    entry, target_dir, dry_run=dry_run, search_opts=search_opts
+                ):
                     query_new_count += 1
             except Exception as e:
                 all_errors.append(f"Query '{query}': {str(e)}")

@@ -3,7 +3,15 @@ job_name: "daghe-youtube-search-metadata"
 # Define multiple search tasks
 searches:
   - query: "Linux automation tutorial 2024"
-    max_results: 1
+    max_results: 5
+    # Search-specific options (e.g. filter by date)
+    extra_ydl_opts:
+      dateafter: "20240101"
+      datebefore: "20241231"
+
+  - query: "Python uv tutorial"
+    max_results: 3
+    # This search has no specific date limits
 
 paths:
   data_dir: "${BASE_DIR}/jobs/daghe-youtube-search-metadata/data"
@@ -16,6 +24,18 @@ output:
   # Se true usa l'ID (es. 0FuF-yE9Kqs.json)
   # Se false usa il titolo (es. Come installare Linux.json)
   use_id_filenames: true
+
+yt_dlp:
+  # Path to the cookies file, using the dynamic placeholder
+  cookie_file: "${BASE_DIR}/config/cookies/daghe-youtube-search-metadata.txt"
+
+  # Extra arguments mapped to yt-dlp Python API keys
+  # See: https://github.com/yt-dlp/yt-dlp/blob/master/yt_dlp/YoutubeDL.py#L141
+  # These are for yt-dlp general behaviour
+  extra_options:
+    sleep_interval_requests: 1
+    verbose: true
+    nocheckcertificate: false
 
 logging:
   level: "INFO"
@@ -37,14 +57,3 @@ telegram:
 
 runtime:
   continue_on_video_error: true
-
-yt_dlp:
-  # Path to the cookies file, using the dynamic placeholder
-  cookie_file: "${BASE_DIR}/config/cookies/daghe-youtube-search-metadata.txt"
-
-  # Extra arguments mapped to yt-dlp Python API keys
-  # See: https://github.com/yt-dlp/yt-dlp/blob/master/yt_dlp/YoutubeDL.py#L141
-  extra_options:
-    sleep_interval_requests: 1
-    verbose: true
-    nocheckcertificate: false
