@@ -33,14 +33,3 @@ git:
   code_repo: "https://github.com/mdic/daghe-youtube-search-metadata.git"
   # can use SSH for private repos
   data_repo: "git@github.com:YOUR/REPO.git"
-
-yt_dlp:
-  # Path to the cookies file, using the dynamic placeholder
-  cookie_file: "${BASE_DIR}/config/cookies/daghe-youtube-search-metadata.txt"
-
-  # Extra arguments mapped to yt-dlp Python API keys
-  # See: https://github.com/yt-dlp/yt-dlp/blob/master/yt_dlp/YoutubeDL.py#L141
-  extra_options:
-    sleep_interval_requests: 1
-    verbose: true
-    nocheckcertificate: false
