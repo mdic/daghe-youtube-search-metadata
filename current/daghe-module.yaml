@@ -1,0 +1,29 @@
+# jobs/daghe-youtube-search-metadata/current/daghe-module.yaml
+module:
+  name: "daghe-youtube-search-metadata"
+  description: "Download YouTube metadata with automated dependency updates"
+  type: "python"
+  entrypoint: "youtube_search_metadata.cli"
+  params: "--config config/job.yaml"
+
+schedule:
+  # systemd OnCalendar syntax: "day-skipping" logic (every two days)
+  # Example: "*-*-1/2 04:00:00" means 4AM every two days
+  calendar: "*-*-1/2 04:00:00"
+
+  # Random delay window (systemd RandomizedDelaySec)
+  # "4h" means it will start at 4AM + a random delay between 0 and 4 hours (up to 8AM)
+  random_delay: "4h"
+
+  prevent_overlap: true
+
+updates:
+  # List the packages you want DaGhE to keep updated.
+  # When you run 'daghe upgrade <name>', it will run 'uv add --upgrade'
+  # which updates the package and all its dependencies in the lockfile.
+  auto_upgrade_packages:
+    - "yt-dlp"
+
+git:
+  code_repo: "https://github.com/mdic/daghe-youtube-search-metadata.git"
+  data_repo: "https://github.com/mdic/daghe-youtube-search-metadata-data.git"

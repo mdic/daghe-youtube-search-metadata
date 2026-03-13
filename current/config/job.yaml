@@ -1,12 +1,12 @@
-job_name: "youtube-search-metadata"
+job_name: "daghe-youtube-search-metadata"
 
 search:
   query: "Linux automation tutorial 2024"
   max_results: 10
 
 paths:
-  data_dir: "${BASE_DIR}/jobs/youtube-search-metadata/data"
-  archive_file: "${BASE_DIR}/jobs/youtube-search-metadata/data/processed_videos.txt"
+  data_dir: "${BASE_DIR}/jobs/daghe-youtube-search-metadata/data"
+  archive_file: "${BASE_DIR}/jobs/daghe-youtube-search-metadata/data/processed_videos.txt"
   telegram_helper: "${BASE_DIR}/bin/telegram-notify.sh"
 
 output:
