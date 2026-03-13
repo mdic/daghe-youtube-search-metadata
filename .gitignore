@@ -15,8 +15,3 @@ config/*.yaml
 !config/*.yaml.example
 !config/.gitkeep
 daghe-module.yaml
-
-# If you use '.config/' (hidden)
-.config/*.yaml
-!.config/*.yaml.example
-!.config/.gitkeep

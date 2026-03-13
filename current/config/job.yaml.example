@@ -32,10 +32,12 @@ yt_dlp:
   # Extra arguments mapped to yt-dlp Python API keys
   # See: https://github.com/yt-dlp/yt-dlp/blob/master/yt_dlp/YoutubeDL.py#L141
   # These are for yt-dlp general behaviour
-  extra_options:
+  extra_ydl_opts:
     sleep_interval_requests: 1
     verbose: true
     nocheckcertificate: false
+    # (Opzionale) Rende l'attesa casuale tra 5 e 10 secondi
+    max_sleep_interval_requests: 10
 
 logging:
   level: "INFO"
