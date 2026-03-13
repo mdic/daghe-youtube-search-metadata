@@ -26,4 +26,5 @@ updates:
 
 git:
   code_repo: "https://github.com/mdic/daghe-youtube-search-metadata.git"
-  data_repo: "https://github.com/mdic/daghe-youtube-search-metadata-data.git"
+  # can use SSH for private repos
+  data_repo: "git@github.com:YOUR/REPO.git"
