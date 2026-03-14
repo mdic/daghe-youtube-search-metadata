@@ -11,7 +11,7 @@ data/*
 
 # Config Safety
 # If you use 'config/' (standard)
-config/*.yaml
-!config/*.yaml.example
-!config/.gitkeep
+current/config/*.yaml
+!current/config/*.yaml.example
+!current/config/.gitkeep
 daghe-module.yaml
