@@ -21,6 +21,7 @@ class MetadataDownloader:
         self.archive = archive
 
         # LAYER 1: Hardcoded Protection Defaults
+        # These ensure no media is downloaded and search is efficient
         self.base_ydl_opts = {
             "quiet": True,
             "no_warnings": True,
@@ -33,7 +34,7 @@ class MetadataDownloader:
         if global_extras:
             self.base_ydl_opts.update(global_extras)
 
-        # Handle Cookies
+        # Handle Cookies for authenticated sessions
         cookie_path = self.config.ydl_cookie_file
         if cookie_path and os.path.exists(cookie_path):
             self.base_ydl_opts["cookiefile"] = os.path.abspath(cookie_path)
@@ -56,7 +57,7 @@ class MetadataDownloader:
         search_str = f"ytsearch{max_results}:{query}"
         current_opts = self._get_merged_opts(search_opts)
 
-        # Ensure search phase is always flat
+        # Ensure search phase is always flat to avoid heavy extraction at this stage
         current_opts["extract_flat"] = "in_playlist"
 
         logger.info(f"Searching: '{query}' (Targeting {max_results} results)")
@@ -64,7 +65,9 @@ class MetadataDownloader:
             with yt_dlp.YoutubeDL(current_opts) as ydl:
                 result = ydl.extract_info(search_str, download=False)
                 entries = result.get("entries", [])
-                logger.info(f"Search Phase: Found {len(entries)} candidate(s) for '{query}'")
+                logger.info(
+                    f"Search Phase: Found {len(entries)} candidate(s) for '{query}'"
+                )
                 return entries
         except Exception as e:
             logger.error(f"Search failed for '{query}': {e}")
@@ -79,7 +82,7 @@ class MetadataDownloader:
     ) -> bool:
         """
         Extract full metadata and save to query sub-directory.
-        Strictly respects the dry_run flag.
+        Strictly respects the dry_run flag and UK English standards.
         """
         video_id = entry.get("id")
         title = entry.get("title", "unknown_video")
@@ -91,7 +94,7 @@ class MetadataDownloader:
         if self.archive.is_processed(video_id):
             return False
 
-        # Normalise the target: Use ID to build a clean watch URL
+        # Normalise the target: Use ID to build a clean watch URL for deep extraction
         video_url = f"https://www.youtube.com/watch?v={video_id}"
 
         use_id = self.config.get("output", "use_id_filenames", default=True)
@@ -109,12 +112,39 @@ class MetadataDownloader:
             return True
 
         try:
-            # Ensure target directory exists
+            # Ensure target query directory exists
             target_dir.mkdir(parents=True, exist_ok=True)
 
-            # LAYER 3: Merge overrides and FORCE full extraction (non-flat)
+            # LAYER 3: Merge overrides and FORCE full deep extraction (non-flat)
             video_opts = self._get_merged_opts(search_opts)
-            video_opts.update({
-                "extract_flat": False,
-                "noplaylist": True
-            })
+            video_opts.update({"extract_flat": False, "noplaylist": True})
+
+            with yt_dlp.YoutubeDL(video_opts) as ydl:
+                # Deep extraction to get description, tags, and full metadata
+                full_info = ydl.extract_info(video_url, download=False)
+
+            if not full_info:
+                logger.warning(f"Could not retrieve full metadata for {video_id}")
+                return False
+
+            # Check if overwriting is disallowed
+            if out_path.exists() and not self.config.get(
+                "output", "overwrite_existing_json"
+            ):
+                logger.debug(f"File {out_path.name} exists, skipping write.")
+                return False
+
+            # Determine JSON formatting
+            indent = 4 if self.config.get("output", "pretty_json") else None
+
+            with open(out_path, "w", encoding="utf-8") as f:
+                json.dump(full_info, f, indent=indent, ensure_ascii=False)
+
+            # Mark as processed in the persistent archive
+            self.archive.add(video_id)
+            logger.info(f"Successfully saved: {filename}")
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to extract metadata for {video_id}: {e}")
+            return False
