@@ -86,107 +86,93 @@ def run_job(config_path: str, dry_run: bool, verbose: bool):
     # 2. Main Pipeline Loop
     # Requires: uv add python-dateutil
 
-    def generate_windows(config):
-        """Generates a list of (start, end) date strings for yt-dlp."""
-        ts = config.time_slicing
-        if not ts.get('enabled'):
-            return [(None, None)]
+    for search_item in config.searches:
+        query = search_item.get("query")
+        target_new = search_item.get("max_results", 10)
+        windows = generate_windows(config)
 
-        start = datetime.strptime(ts['start_date'], '%Y-%m-%d')
-        end = datetime.strptime(ts['end_date'], '%Y-%m-%d')
-        interval = ts.get('interval', 'month')
+        pool_size = config.strategy["pool_size"]
+        all_candidates = {}  # Deduplication map: {id: entry_data}
 
-        windows = []
-        curr = start
-        while curr < end:
-            if interval == 'month':
-                nxt = curr + relativedelta(months=1)
-            elif interval == 'quarter':
-                nxt = curr + relativedelta(months=3)
-            else: # year
-                nxt = curr + relativedelta(years=1)
+        logger.info(f"--- Query: '{query}' | Target: {target_new} new videos ---")
+        logger.info(f"Temporal slicing: {len(windows)} windows generated.")
 
-            windows.append((curr.strftime('%Y%m%d'), nxt.strftime('%Y%m%d')))
-            curr = nxt
-        return windows
+        # FALLBACK LOOP
+        while pool_size <= config.strategy["pool_size_max"]:
+            for start, end in windows:
+                entries = downloader.search_videos(
+                    query, pool_size, search_item.get("extra_ydl_opts"), start, end
+                )
+                for entry in entries:
+                    if entry.get("id"):
+                        all_candidates[entry["id"]] = entry
 
-    def run_job(config_path, dry_run, verbose):
-        # ... (Initialise config, logger, archive, downloader as before) ...
+            # Deduplicate and filter archived items
+            unique_ids = list(all_candidates.keys())
+            fresh_candidates = [
+                all_candidates[v_id]
+                for v_id in unique_ids
+                if not archive.is_processed(v_id)
+            ]
 
-for search_item in config.searches:
-    query = search_item.get('query')
-    target_new = search_item.get('max_results', 10)
-    windows = generate_windows(config)
+            logger.info(
+                f"Pool Size {pool_size}: {len(unique_ids)} unique found, {len(fresh_candidates)} are fresh."
+            )
 
-    pool_size = config.strategy['pool_size']
-    all_candidates = {} # Deduplication map: {id: entry_data}
+            if (
+                len(fresh_candidates) >= target_new
+                or pool_size == config.strategy["pool_size_max"]
+            ):
+                break
 
-    logger.info(f"--- Query: '{query}' | Target: {target_new} new videos ---")
-    logger.info(f"Temporal slicing: {len(windows)} windows generated.")
+            pool_size += config.strategy["pool_size_step"]
+            logger.warning(
+                f"Insufficient fresh candidates. Expanding pool size to {pool_size}..."
+            )
 
-    # FALLBACK LOOP
-    while pool_size <= config.strategy['pool_size_max']:
-        for start, end in windows:
-            entries = downloader.search_videos(query, pool_size, search_item.get('extra_ydl_opts'), start, end)
-            for entry in entries:
-                if entry.get('id'):
-                    all_candidates[entry['id']] = entry
+        # SHUFFLE AND PROCESS
+        random.shuffle(fresh_candidates)
+        saved_count = 0
+        target_dir = config.data_dir / sanitize_filename(query)
 
-        # Deduplicate and filter archived items
-        unique_ids = list(all_candidates.keys())
-        fresh_candidates = [all_candidates[v_id] for v_id in unique_ids if not archive.is_processed(v_id)]
+        for entry in fresh_candidates:
+            if saved_count >= target_new:
+                break
 
-        logger.info(f"Pool Size {pool_size}: {len(unique_ids)} unique found, {len(fresh_candidates)} are fresh.")
+            if downloader.process_video(entry, target_dir, dry_run=dry_run):
+                saved_count += 1
 
-        if len(fresh_candidates) >= target_new or pool_size == config.strategy['pool_size_max']:
-            break
+        logger.info(f"Completed query '{query}': Saved {saved_count} new files.")
 
-        pool_size += config.strategy['pool_size_step']
-        logger.warning(f"Insufficient fresh candidates. Expanding pool size to {pool_size}...")
-
-    # SHUFFLE AND PROCESS
-    random.shuffle(fresh_candidates)
-    saved_count = 0
-    target_dir = config.data_dir / sanitize_filename(query)
-
-    for entry in fresh_candidates:
-        if saved_count >= target_new:
-            break
-
-        if downloader.process_video(entry, target_dir, dry_run=dry_run):
-            saved_count += 1
-
-    logger.info(f"Completed query '{query}': Saved {saved_count} new files.")
-
-    # 3. Synchronisation & Reporting
-    git_success, git_msg = (
-        (True, "Skipped") if dry_run else run_git_sync(config, total_new)
-    )
-
-    # Status determination based on errors and actual work done
-    if not all_errors and git_success:
-        status = "success"
-    elif total_new > 0:
-        status = "partial"
-    else:
-        status = "failure"
-
-    total_size = get_dir_size_human(config.data_dir)
-    summary = (
-        f"Job: {config.get('job_name')}\n"
-        f"Results: {', '.join(queries_summary)}\n"
-        f"Total New Files: {total_new}\n"
-        f"Git Status: {git_msg}\n"
-        f"Data Size: {total_size}\n"
-        f"Status: {status.upper()}"
-    )
-
-    if not dry_run:
-        send_notification(
-            config,
-            config.get("telegram", f"level_on_{status}", default="info"),
-            summary,
+        # 3. Synchronisation & Reporting
+        git_success, git_msg = (
+            (True, "Skipped") if dry_run else run_git_sync(config, total_new)
         )
 
-    print(summary)
-    return 0 if status == "success" else (2 if status == "partial" else 1)
+        # Status determination based on errors and actual work done
+        if not all_errors and git_success:
+            status = "success"
+        elif total_new > 0:
+            status = "partial"
+        else:
+            status = "failure"
+
+        total_size = get_dir_size_human(config.data_dir)
+        summary = (
+            f"Job: {config.get('job_name')}\n"
+            f"Results: {', '.join(queries_summary)}\n"
+            f"Total New Files: {total_new}\n"
+            f"Git Status: {git_msg}\n"
+            f"Data Size: {total_size}\n"
+            f"Status: {status.upper()}"
+        )
+
+        if not dry_run:
+            send_notification(
+                config,
+                config.get("telegram", f"level_on_{status}", default="info"),
+                summary,
+            )
+
+        print(summary)
+        return 0 if status == "success" else (2 if status == "partial" else 1)
