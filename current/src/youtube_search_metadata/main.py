@@ -85,34 +85,33 @@ def run_job(config_path: str, dry_run: bool, verbose: bool):
 
     # 2. Main Pipeline Loop
     # Requires: uv add python-dateutil
-   from .utils import sanitize_filename, get_dir_size_human
 
-   def generate_windows(config):
-       """Generates a list of (start, end) date strings for yt-dlp."""
-       ts = config.time_slicing
-       if not ts.get('enabled'):
-           return [(None, None)]
+    def generate_windows(config):
+        """Generates a list of (start, end) date strings for yt-dlp."""
+        ts = config.time_slicing
+        if not ts.get('enabled'):
+            return [(None, None)]
 
-       start = datetime.strptime(ts['start_date'], '%Y-%m-%d')
-       end = datetime.strptime(ts['end_date'], '%Y-%m-%d')
-       interval = ts.get('interval', 'month')
+        start = datetime.strptime(ts['start_date'], '%Y-%m-%d')
+        end = datetime.strptime(ts['end_date'], '%Y-%m-%d')
+        interval = ts.get('interval', 'month')
 
-       windows = []
-       curr = start
-       while curr < end:
-           if interval == 'month':
-               nxt = curr + relativedelta(months=1)
-           elif interval == 'quarter':
-               nxt = curr + relativedelta(months=3)
-           else: # year
-               nxt = curr + relativedelta(years=1)
+        windows = []
+        curr = start
+        while curr < end:
+            if interval == 'month':
+                nxt = curr + relativedelta(months=1)
+            elif interval == 'quarter':
+                nxt = curr + relativedelta(months=3)
+            else: # year
+                nxt = curr + relativedelta(years=1)
 
-           windows.append((curr.strftime('%Y%m%d'), nxt.strftime('%Y%m%d')))
-           curr = nxt
-       return windows
+            windows.append((curr.strftime('%Y%m%d'), nxt.strftime('%Y%m%d')))
+            curr = nxt
+        return windows
 
-   def run_job(config_path, dry_run, verbose):
-       # ... (Initialise config, logger, archive, downloader as before) ...
+    def run_job(config_path, dry_run, verbose):
+        # ... (Initialise config, logger, archive, downloader as before) ...
 
 for search_item in config.searches:
     query = search_item.get('query')
