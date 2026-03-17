@@ -1,5 +1,17 @@
 job_name: "daghe-youtube-search-metadata"
 
+search_strategy:
+  pool_size: 100        # Candidates to fetch per time window
+  pool_size_max: 500    # Maximum expansion limit
+  pool_size_step: 100   # Increment per fallback step
+
+# Temporal stratification configuration
+time_slicing:
+  enabled: true
+  start_date: "2023-01-01"
+  end_date: "2025-12-31"
+  interval: "quarter"   # Options: month, quarter, year
+
 # Define multiple search tasks
 searches:
   - query: "Linux automation tutorial 2024"
