@@ -51,26 +51,35 @@ class MetadataDownloader:
         return opts
 
     def search_videos(
-        self, query: str, max_results: int, search_opts: dict = None
+        self,
+        query: str,
+        max_results: int,
+        search_opts: dict = None,
+        date_after: str = None,
+        date_before: str = None,
     ) -> list:
-        """Perform search using merged global and specific options."""
+        """
+        Phase 1: Flat search retrieval with optional date filtering.
+        UK English spelling: Initialise search with temporal constraints.
+        """
         search_str = f"ytsearch{max_results}:{query}"
         current_opts = self._get_merged_opts(search_opts)
+        current_opts.update(
+            {
+                "extract_flat": "in_playlist",
+                "dateafter": date_after,
+                "datebefore": date_before,
+            }
+        )
 
-        # Ensure search phase is always flat to avoid heavy extraction at this stage
-        current_opts["extract_flat"] = "in_playlist"
-
-        logger.info(f"Searching: '{query}' (Targeting {max_results} results)")
         try:
             with yt_dlp.YoutubeDL(current_opts) as ydl:
                 result = ydl.extract_info(search_str, download=False)
-                entries = result.get("entries", [])
-                logger.info(
-                    f"Search Phase: Found {len(entries)} candidate(s) for '{query}'"
-                )
-                return entries
+                return result.get("entries", [])
         except Exception as e:
-            logger.error(f"Search failed for '{query}': {e}")
+            logger.error(
+                f"Search failed for '{query}' [{date_after} to {date_before}]: {e}"
+            )
             return []
 
     def process_video(

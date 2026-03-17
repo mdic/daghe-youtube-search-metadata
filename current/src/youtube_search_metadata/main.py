@@ -1,6 +1,10 @@
 import logging
 import os
+import random
+from datetime import datetime, timedelta
 from logging.handlers import RotatingFileHandler
+
+from dateutil.relativedelta import relativedelta
 
 from .archive import ArchiveManager
 from .config import load_config
@@ -8,6 +12,31 @@ from .downloader import MetadataDownloader
 from .git_ops import run_git_sync
 from .notifier import send_notification
 from .utils import get_dir_size_human, sanitize_filename
+
+
+def generate_windows(config):
+    """Generates a list of (start, end) date strings for yt-dlp."""
+    ts = config.time_slicing
+    if not ts.get("enabled"):
+        return [(None, None)]
+
+    start = datetime.strptime(ts["start_date"], "%Y-%m-%d")
+    end = datetime.strptime(ts["end_date"], "%Y-%m-%d")
+    interval = ts.get("interval", "month")
+
+    windows = []
+    curr = start
+    while curr < end:
+        if interval == "month":
+            nxt = curr + relativedelta(months=1)
+        elif interval == "quarter":
+            nxt = curr + relativedelta(months=3)
+        else:  # year
+            nxt = curr + relativedelta(years=1)
+
+        windows.append((curr.strftime("%Y%m%d"), nxt.strftime("%Y%m%d")))
+        curr = nxt
+    return windows
 
 
 def run_job(config_path: str, dry_run: bool, verbose: bool):
@@ -55,64 +84,80 @@ def run_job(config_path: str, dry_run: bool, verbose: bool):
         )
 
     # 2. Main Pipeline Loop
-    for search_item in config.searches:
-        query = search_item.get("query")
-        max_res = search_item.get("max_results", 5)
-        search_opts = search_item.get("extra_ydl_opts", {})
+    # Requires: uv add python-dateutil
+   from .utils import sanitize_filename, get_dir_size_human
 
-        if not query:
-            continue
+   def generate_windows(config):
+       """Generates a list of (start, end) date strings for yt-dlp."""
+       ts = config.time_slicing
+       if not ts.get('enabled'):
+           return [(None, None)]
 
-        logger.info(f"--- Processing Query: '{query}' ---")
+       start = datetime.strptime(ts['start_date'], '%Y-%m-%d')
+       end = datetime.strptime(ts['end_date'], '%Y-%m-%d')
+       interval = ts.get('interval', 'month')
 
-        query_dir_name = sanitize_filename(query)
-        target_dir = config.data_dir / query_dir_name
+       windows = []
+       curr = start
+       while curr < end:
+           if interval == 'month':
+               nxt = curr + relativedelta(months=1)
+           elif interval == 'quarter':
+               nxt = curr + relativedelta(months=3)
+           else: # year
+               nxt = curr + relativedelta(years=1)
 
-        # Discovery candidates
-        candidates = downloader.search_videos(query, max_res, search_opts=search_opts)
+           windows.append((curr.strftime('%Y%m%d'), nxt.strftime('%Y%m%d')))
+           curr = nxt
+       return windows
 
-        query_saved_count = 0
-        query_skipped_count = 0
-        query_failed_count = 0
+   def run_job(config_path, dry_run, verbose):
+       # ... (Initialise config, logger, archive, downloader as before) ...
 
-        # Iterating through ALL search results
-        for entry in candidates:
-            video_id = entry.get("id", "unknown")
+for search_item in config.searches:
+    query = search_item.get('query')
+    target_new = search_item.get('max_results', 10)
+    windows = generate_windows(config)
 
-            # Check archive before calling extractor to save time
-            if archive.is_processed(video_id):
-                query_skipped_count += 1
-                continue
+    pool_size = config.strategy['pool_size']
+    all_candidates = {} # Deduplication map: {id: entry_data}
 
-            try:
-                # Execution of Phase 2 for each candidate
-                if downloader.process_video(
-                    entry, target_dir, dry_run=dry_run, search_opts=search_opts
-                ):
-                    query_saved_count += 1
-                else:
-                    # process_video returns False on non-fatal failures
-                    query_failed_count += 1
-            except Exception as e:
-                # Catching any unexpected errors to prevent loop breakage
-                err_msg = (
-                    f"Query '{query}', Video {video_id}: Unexpected error: {str(e)}"
-                )
-                logger.error(err_msg)
-                all_errors.append(err_msg)
-                query_failed_count += 1
+    logger.info(f"--- Query: '{query}' | Target: {target_new} new videos ---")
+    logger.info(f"Temporal slicing: {len(windows)} windows generated.")
 
-        total_new += query_saved_count
-        summary_msg = (
-            f"'{query}': {query_saved_count} saved, {query_skipped_count} skipped"
-        )
-        if query_failed_count > 0:
-            summary_msg += f", {query_failed_count} failed"
+    # FALLBACK LOOP
+    while pool_size <= config.strategy['pool_size_max']:
+        for start, end in windows:
+            entries = downloader.search_videos(query, pool_size, search_item.get('extra_ydl_opts'), start, end)
+            for entry in entries:
+                if entry.get('id'):
+                    all_candidates[entry['id']] = entry
 
-        queries_summary.append(summary_msg)
-        logger.info(
-            f"Query Summary for '{query}': {query_saved_count} new, {query_skipped_count} skipped."
-        )
+        # Deduplicate and filter archived items
+        unique_ids = list(all_candidates.keys())
+        fresh_candidates = [all_candidates[v_id] for v_id in unique_ids if not archive.is_processed(v_id)]
+
+        logger.info(f"Pool Size {pool_size}: {len(unique_ids)} unique found, {len(fresh_candidates)} are fresh.")
+
+        if len(fresh_candidates) >= target_new or pool_size == config.strategy['pool_size_max']:
+            break
+
+        pool_size += config.strategy['pool_size_step']
+        logger.warning(f"Insufficient fresh candidates. Expanding pool size to {pool_size}...")
+
+    # SHUFFLE AND PROCESS
+    random.shuffle(fresh_candidates)
+    saved_count = 0
+    target_dir = config.data_dir / sanitize_filename(query)
+
+    for entry in fresh_candidates:
+        if saved_count >= target_new:
+            break
+
+        if downloader.process_video(entry, target_dir, dry_run=dry_run):
+            saved_count += 1
+
+    logger.info(f"Completed query '{query}': Saved {saved_count} new files.")
 
     # 3. Synchronisation & Reporting
     git_success, git_msg = (

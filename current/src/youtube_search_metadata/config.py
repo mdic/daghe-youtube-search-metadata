@@ -44,6 +44,21 @@ class JobConfig:
         """Access global extra yt-dlp options."""
         return self.raw.get("yt_dlp", {}).get("extra_ydl_opts", {})
 
+    @property
+    def strategy(self) -> dict:
+        return self.raw.get(
+            "search_strategy",
+            {"pool_size": 100, "pool_size_max": 300, "pool_size_step:": 100},
+        )
+
+    @property
+    def time_slicing(self) -> dict:
+        return self.raw.get("time_slicing", {"enabled": False})
+
+    @property
+    def searches(self) -> list:
+        return self.raw.get("searches", [])
+
     def get(self, *keys, default=None):
         data = self.raw
         for key in keys:
