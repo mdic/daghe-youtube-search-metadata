@@ -62,7 +62,7 @@ git:
   enabled: true
   branch: "main"
   auto_push: true
-  commit_message_template: "youtube-search-metadata: {new_count} new metadata files for query '{query}'"
+  commit_message_template: "youtube-search-metadata: {new_count}"
 
 telegram:
   enabled: true
