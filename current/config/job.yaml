@@ -1,22 +1,22 @@
-job_name: "daghe-youtube-search-metadata"
+job_name: 'daghe-youtube-search-metadata'
 
 # Define multiple search tasks
 searches:
-  - query: "Linux automation tutorial 2024"
+  - query: 'Linux automation tutorial 2024'
     max_results: 5
     # Search-specific options (e.g. filter by date)
     extra_ydl_opts:
-      dateafter: "20240101"
-      datebefore: "20241231"
+      dateafter: '20240101'
+      datebefore: '20241231'
 
-  - query: "Python uv tutorial"
+  - query: 'Python uv tutorial'
     max_results: 3
     # This search has no specific date limits
 
 paths:
-  data_dir: "${BASE_DIR}/jobs/daghe-youtube-search-metadata/data"
-  archive_file: "${BASE_DIR}/jobs/daghe-youtube-search-metadata/data/processed_videos.txt"
-  telegram_helper: "${BASE_DIR}/bin/telegram-notify.sh"
+  data_dir: '${BASE_DIR}/jobs/daghe-youtube-search-metadata/data'
+  archive_file: '${BASE_DIR}/jobs/daghe-youtube-search-metadata/data/processed_videos.txt'
+  telegram_helper: '${BASE_DIR}/bin/telegram-notify.sh'
 
 output:
   pretty_json: true
@@ -27,7 +27,7 @@ output:
 
 yt_dlp:
   # Path to the cookies file, using the dynamic placeholder
-  cookie_file: "${BASE_DIR}/config/cookies/daghe-youtube-search-metadata.txt"
+  cookie_file: '${BASE_DIR}/config/cookies/youtube.txt'
 
   # Extra arguments mapped to yt-dlp Python API keys
   # See: https://github.com/yt-dlp/yt-dlp/blob/master/yt_dlp/YoutubeDL.py#L141
@@ -38,11 +38,11 @@ yt_dlp:
     nocheckcertificate: false
 
 logging:
-  level: "INFO"
+  level: 'INFO'
 
 git:
   enabled: true
-  branch: "main"
+  branch: 'main'
   auto_push: true
   commit_message_template: "youtube-search-metadata: {new_count} new metadata files for query '{query}'"
 
@@ -51,9 +51,9 @@ telegram:
   notify_on_success: true
   notify_on_partial: true
   notify_on_failure: true
-  level_on_success: "info"
-  level_on_partial: "error"
-  level_on_failure: "error"
+  level_on_success: 'info'
+  level_on_partial: 'error'
+  level_on_failure: 'error'
 
 runtime:
   continue_on_video_error: true
