@@ -5,6 +5,10 @@ search_strategy:
   pool_size_max: 500    # Maximum expansion limit
   pool_size_step: 100   # Increment per fallback step
 
+sampling:
+  candidates_to_fetch: 100  # N: How many results to ask yt-dlp for
+  max_results_to_save: 10   # Y: How many fresh videos to actually process/save
+
 # Temporal stratification configuration
 time_slicing:
   enabled: true

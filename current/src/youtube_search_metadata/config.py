@@ -45,19 +45,15 @@ class JobConfig:
         return self.raw.get("yt_dlp", {}).get("extra_ydl_opts", {})
 
     @property
-    def strategy(self) -> dict:
+    def sampling(self) -> dict:
+        """Returns sampling parameters N (fetch) and Y (save)."""
         return self.raw.get(
-            "search_strategy",
-            {"pool_size": 100, "pool_size_max": 300, "pool_size_step:": 100},
+            "sampling", {"candidates_to_fetch": 50, "max_results_to_save": 5}
         )
 
     @property
     def time_slicing(self) -> dict:
         return self.raw.get("time_slicing", {"enabled": False})
-
-    @property
-    def searches(self) -> list:
-        return self.raw.get("searches", [])
 
     def get(self, *keys, default=None):
         data = self.raw
