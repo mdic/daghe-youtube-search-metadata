@@ -63,45 +63,74 @@ def run_job(config_path: str, dry_run: bool, verbose: bool):
         if not query:
             continue
 
-        logger.info(f"--- Processing Query: {query} ---")
+        logger.info(f"--- Processing Query: '{query}' ---")
 
         query_dir_name = sanitize_filename(query)
         target_dir = config.data_dir / query_dir_name
 
-        # Discover candidates with specific overrides
+        # Discovery candidates
         candidates = downloader.search_videos(query, max_res, search_opts=search_opts)
-        query_new_count = 0
 
+        query_saved_count = 0
+        query_skipped_count = 0
+        query_failed_count = 0
+
+        # Iterating through ALL search results
         for entry in candidates:
+            video_id = entry.get("id", "unknown")
+
+            # Check archive before calling extractor to save time
+            if archive.is_processed(video_id):
+                query_skipped_count += 1
+                continue
+
             try:
-                # Pass both the directory, the dry_run flag, and the search options
+                # Execution of Phase 2 for each candidate
                 if downloader.process_video(
                     entry, target_dir, dry_run=dry_run, search_opts=search_opts
                 ):
-                    query_new_count += 1
+                    query_saved_count += 1
+                else:
+                    # process_video returns False on non-fatal failures
+                    query_failed_count += 1
             except Exception as e:
-                err_msg = f"Query '{query}', Video {entry.get('id')}: {str(e)}"
+                # Catching any unexpected errors to prevent loop breakage
+                err_msg = (
+                    f"Query '{query}', Video {video_id}: Unexpected error: {str(e)}"
+                )
                 logger.error(err_msg)
                 all_errors.append(err_msg)
+                query_failed_count += 1
 
-        total_new += query_new_count
-        queries_summary.append(f"{query} ({query_new_count})")
+        total_new += query_saved_count
+        summary_msg = (
+            f"'{query}': {query_saved_count} saved, {query_skipped_count} skipped"
+        )
+        if query_failed_count > 0:
+            summary_msg += f", {query_failed_count} failed"
+
+        queries_summary.append(summary_msg)
+        logger.info(
+            f"Query Summary for '{query}': {query_saved_count} new, {query_skipped_count} skipped."
+        )
 
     # 3. Synchronisation & Reporting
     git_success, git_msg = (
         (True, "Skipped") if dry_run else run_git_sync(config, total_new)
     )
 
-    status = (
-        "success"
-        if not all_errors and git_success
-        else ("partial" if total_new > 0 else "failure")
-    )
+    # Status determination based on errors and actual work done
+    if not all_errors and git_success:
+        status = "success"
+    elif total_new > 0:
+        status = "partial"
+    else:
+        status = "failure"
 
     total_size = get_dir_size_human(config.data_dir)
     summary = (
         f"Job: {config.get('job_name')}\n"
-        f"Queries: {', '.join(queries_summary)}\n"
+        f"Results: {', '.join(queries_summary)}\n"
         f"Total New Files: {total_new}\n"
         f"Git Status: {git_msg}\n"
         f"Data Size: {total_size}\n"
