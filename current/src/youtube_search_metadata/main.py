@@ -128,7 +128,7 @@ def run_job(config_path: str, dry_run: bool, verbose: bool):
 
     # Finalise: Git Sync & Reporting
     git_success, git_msg = (
-        (True, "Skipped") if dry_run else run_git_sync(config, total_new_saved)
+        (True, "Skipped") if dry_run else run_git_sync(config, ", ".join(summary_lines))
     )
     status = "success" if git_success else "partial"
 
