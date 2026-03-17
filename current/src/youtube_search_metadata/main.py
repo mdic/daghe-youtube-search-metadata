@@ -68,10 +68,9 @@ def run_job(config_path: str, dry_run: bool, verbose: bool):
     all_errors = []
     summary_lines = []
 
-    # 1. Pre-generate all possible windows
     all_possible_windows = generate_windows(config)
     logger.info(
-        f"Temporal Stratification: {len(all_possible_windows)} total windows generated."
+        f"Temporal Stratification: {len(all_possible_windows)} windows available."
     )
 
     for search_item in config.searches:
@@ -79,7 +78,6 @@ def run_job(config_path: str, dry_run: bool, verbose: bool):
         if not query:
             continue
 
-        # 2. Randomly select exactly ONE window for this query execution
         selected_window = random.choice(all_possible_windows)
         date_after, date_before = selected_window
 
@@ -87,9 +85,8 @@ def run_job(config_path: str, dry_run: bool, verbose: bool):
         y_save = config.sampling["max_results_to_save"]
 
         logger.info(f"--- Processing Query: '{query}' ---")
-        logger.info(f"Selected Window: {date_after or 'Any'} to {date_before or 'Any'}")
+        logger.info(f"Sampling Window: {date_after or 'Any'} to {date_before or 'Any'}")
 
-        # 3. Fetch N candidates for the window
         candidates = downloader.search_videos(
             query,
             n_fetch,
@@ -98,18 +95,15 @@ def run_job(config_path: str, dry_run: bool, verbose: bool):
             date_before=date_before,
         )
 
-        # 4. Deduplicate and filter against archive
-        # We use a dict to ensure ID uniqueness if yt-dlp returned duplicates
         unique_candidates = {c["id"]: c for c in candidates if c.get("id")}.values()
         fresh_candidates = [
             c for c in unique_candidates if not archive.is_processed(c["id"])
         ]
 
         logger.info(
-            f"Results: {len(candidates)} fetched -> {len(unique_candidates)} unique -> {len(fresh_candidates)} fresh."
+            f"Pool: {len(candidates)} fetched -> {len(fresh_candidates)} fresh candidates found."
         )
 
-        # 5. Shuffle eligible candidates and process up to Y
         random.shuffle(fresh_candidates)
 
         query_saved_count = 0
@@ -119,7 +113,13 @@ def run_job(config_path: str, dry_run: bool, verbose: bool):
             if query_saved_count >= y_save:
                 break
 
-            if downloader.process_video(entry, target_dir, dry_run=dry_run):
+            # Phase 2: Now strictly metadata-only
+            if downloader.process_video(
+                entry,
+                target_dir,
+                dry_run=dry_run,
+                search_opts=search_item.get("extra_ydl_opts"),
+            ):
                 query_saved_count += 1
 
         total_new_saved += query_saved_count
